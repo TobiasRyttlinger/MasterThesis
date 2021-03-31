@@ -79,7 +79,7 @@ void QuadtreeNode::AddChildNode(TSharedPtr<QuadtreeNode> node)
 
 /**Delete unused childnodes*/
 void QuadtreeNode::ClearChildren() {
-
+	childNodes.Empty();
 }
 
 
@@ -143,8 +143,10 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 	FString TexturePath = "Texture2D'/Game/simplex.simplex'";
 	FString sPath = "Material'/Game/simplex_Mat.simplex_Mat'";
 	FString LocalPath = "C:/Users/Admin/Downloads/Tiles/1.png";
+	if (Texture == nullptr) {
+		LoadTextureFromPath(LocalPath);
+	}
 
-	//LoadTextureFromPath(LocalPath);
 
 	TArray<double> HeightMap;/* = CalculateHeightMap(Texture);*/
 	HeightMap.Init(0, NoiseSamplesPerLine * NoiseSamplesPerLine);
@@ -170,7 +172,7 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 	StaticProviderIn->SetupMaterialSlot(0, TEXT("Material"), terrainMaterialInstance);
 	StaticProviderIn->SetCollisionSettings(runtimeMeshSettings);
 	StaticProviderIn->CreateSectionFromComponents(0, SectionID, 0, Vertices, Triangles, Normals, TexCoords, Colors, Tangents, ERuntimeMeshUpdateFrequency::Frequent, true);
-
+	//GEngine->ForceGarbageCollection(true);
 }
 
 TArray<double> QuadtreeNode::CalculateHeightMap(UTexture2D* TexIn) {
@@ -218,9 +220,7 @@ void QuadtreeNode::LoadTextureFromPath(const FString& FullFilePath)
 		if (ImageWrapper->GetRaw(ERGBFormat::RGBA, 8, UncompressedRGBA))
 		{
 			Texture = UTexture2D::CreateTransient(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), PF_R8G8B8A8);
-			/*	Texture->MipGenSettings = TMGS_LeaveExistingMips;
-				Texture->PlatformData->SetNumSlices(0);
-				Texture->NeverStream = false;*/
+		
 
 				//Valid?
 			if (!Texture)
@@ -239,8 +239,7 @@ void QuadtreeNode::LoadTextureFromPath(const FString& FullFilePath)
 		UncompressedRGBA.Empty();
 	}
 	RawFileData.Empty();
-
-
+	
 }
 
 

@@ -91,6 +91,7 @@ void Quadtree::UpdateMesh(TSharedPtr<QuadtreeNode> CurrentNode) {
 
 	if (distance < CurrentNode->NodeRadius * 2.0f) {
 		if (CurrentNode->GetChildNodes().Num() > 0) {
+			CurrentNode->Rendered = false;
 			for (auto childs : CurrentNode->GetChildNodes()) {
 				UpdateMesh(childs);
 			}
@@ -103,7 +104,9 @@ void Quadtree::UpdateMesh(TSharedPtr<QuadtreeNode> CurrentNode) {
 	else {
 		for (auto childs : CurrentNode->GetChildNodes()) {
 			if (childs->Rendered == true) {
-				StaticProvider->RemoveSection(0, childs->SectionID);
+				if (childs->SectionID > 0) {
+					StaticProvider->RemoveSection(0, childs->SectionID);
+				}
 			}
 		}
 		if (CurrentNode->GetChildNodes().Num() > 0) {
@@ -120,7 +123,7 @@ void Quadtree::GetVisibleChildren(TSharedPtr<QuadtreeNode> CurrentNode) {
 	FVector MeshPos = CurrentNode->GetPosition();
 	MeshPos.Normalize(1.0f);
 	MeshPos = MeshPos * PlanetRadius;
-	double distance = GetDistance(CameraPos, MeshPos);
+	double distance = GetDistance(CameraPos, CurrentNode->GetPosition());
 
 	FVector BoxCenter, origin;
 	QT_Actor->GetActorBounds(false, origin, BoxCenter);
@@ -132,7 +135,8 @@ void Quadtree::GetVisibleChildren(TSharedPtr<QuadtreeNode> CurrentNode) {
 	float Angle = FMath::Acos((FMath::Pow(PlanetRadius, 2) + FMath::Pow(CameraHeight, 2) - FMath::Pow(distance, 2)) / (2 * PlanetRadius * CameraHeight));
 
 
-	if (Angle < 1.25f && VisibilitySphere < distance) {
+	if (Angle < 1.45f && VisibilitySphere < distance) {
+
 		VisiblechildrenNodes.Add(CurrentNode);
 		CurrentNode->Rendered = true;
 	}
@@ -155,7 +159,7 @@ void Quadtree::GenerateTerrain(TArray<TSharedPtr<QuadtreeNode>> inNodes) {
 			Node->GenerateNodeMesh(QT_Actor, StaticProvider, Node->GetLocalUp(), 0);
 		}
 
-		triangleIndex += 256;
+		triangleIndex +=16;
 	}
 	VisiblechildrenNodes.Empty();
 	StaticProvider->MarkAllLODsDirty();
