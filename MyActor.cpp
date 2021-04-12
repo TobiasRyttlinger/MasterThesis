@@ -16,11 +16,13 @@ AMyActor::AMyActor()
 {
     // Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
+
 }
 
 // Called when the game starts or when spawned
 void AMyActor::BeginPlay()
 {
+    	//LoadTextureFromPath(LocalPath);
     counter = 0;
     Super::BeginPlay();
 
@@ -45,7 +47,7 @@ void AMyActor::BeginPlay()
 void AMyActor::Tick(float DeltaTime)
 {
 
-     if(counter >= 0.1f) {
+   if(counter >= 0.1f) {
 
     QT_1.UpdateMesh(QT_1.GetRootNode());
     QT_2.UpdateMesh(QT_2.GetRootNode());
@@ -61,7 +63,7 @@ void AMyActor::Tick(float DeltaTime)
     QT_5.GenerateTerrain(QT_5.VisiblechildrenNodes);
     QT_6.GenerateTerrain(QT_6.VisiblechildrenNodes);
 
-    counter = 0;
+   counter = 0;
      } 
        // GEngine->ForceGarbageCollection(true);
     counter += DeltaTime;

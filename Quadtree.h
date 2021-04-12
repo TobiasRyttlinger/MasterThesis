@@ -37,6 +37,11 @@ public:
 
 	int GetNeighbourLOD(TSharedPtr<QuadtreeNode> CurrentNode);
 
+	double Dot(FVector a, FVector b);
+	double Abs(FVector a);
+
+	bool less(double a, double b);
+
 	TArray<TSharedPtr<QuadtreeNode>> VisiblechildrenNodes;
 	FVector LocalUp;
 	double PlanetRadius;

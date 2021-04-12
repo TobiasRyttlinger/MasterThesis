@@ -30,6 +30,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		USceneComponent* RootComp;
 
+	//TArray<UTexture2D> Textures;
 
 public:
 	// Called every frame

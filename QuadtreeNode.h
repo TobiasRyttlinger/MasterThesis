@@ -12,6 +12,7 @@
 #include "Misc/DefaultValueHelper.h"
 #include "Math/Vector.h"
 #include "ImageUtils.h"
+#include "Serialization/StructuredArchive.h"
 #include "IImageWrapperModule.h"
 #include "IImageWrapper.h"
 #include "HAL/UnrealMemory.h"
@@ -101,7 +102,9 @@ public:
 
 	void GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProvider, FVector LocalUp, int LodLevel);
 
-	TArray<FVector2D> GenerateUVS(TArray<FVector2D>TexCoordsIn, int Resolution);
+	void readFile();
+
+	void GenerateUVS( int Resolution);
 
 	TArray<FVector> GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp, TArray<double> HeightMap);
 
@@ -121,17 +124,13 @@ public:
 	double NodeRadius;
 	int SectionID;
 	bool Rendered;
-
+	TArray<FVector2D> TexCoords;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UMaterial* Mat = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UTexture2D* Texture = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UMaterialInstanceDynamic* DynMat = nullptr;
-
-
-
-
 
 	template <typename ObjClass>
 	static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)
@@ -180,8 +179,10 @@ private:
 	TArray<FVector> Wgs84;
 	TArray<FVector> Vertices;
 	TArray<int> Triangles;
-	TArray<FVector2D> TexCoords;
+
 	FVector AxisA;
 	FVector AxisB;
+
+	bool initialised;
 
 };

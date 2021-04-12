@@ -1,4 +1,4 @@
-#include "QuadtreeNode.h"
+﻿#include "QuadtreeNode.h"
 #include "DrawDebugHelpers.h"
 
 
@@ -33,8 +33,10 @@ void QuadtreeNode::initialiseNode(TSharedPtr<QuadtreeNode> Parent, FVector inPos
 	AxisA = axisA;
 	AxisB = axisB;
 	NodePosition = pos;
-
+	Texture = nullptr;
 	FString tempSectionID = "10";
+	initialised = false;
+
 	if (Parent.IsValid()) {
 		FString ParentID = FString::FromInt(Parent->SectionID);
 		FString NodeID = FString::FromInt(NodePosition);
@@ -42,9 +44,8 @@ void QuadtreeNode::initialiseNode(TSharedPtr<QuadtreeNode> Parent, FVector inPos
 	}
 
 
-
 	SectionID = FCString::Atoi(*tempSectionID);
-
+	//UE_LOG(LogTemp, Warning, TEXT("distance: %d"), SectionID);
 }
 
 void QuadtreeNode::SetNodePosition(int position) {
@@ -75,13 +76,16 @@ void QuadtreeNode::AddChildNode(TSharedPtr<QuadtreeNode> node)
 
 }
 
-
-
 /**Delete unused childnodes*/
 void QuadtreeNode::ClearChildren() {
+	if (childNodes.Num() > 0) {
+		for (auto child : GetChildNodes()) {
+
+			child->ClearChildren();
+		}
+	}
 	childNodes.Empty();
 }
-
 
 /** Get the distance from the root node of the tree. */
 double QuadtreeNode::GetRadius() {
@@ -109,32 +113,37 @@ TArray<TSharedPtr<QuadtreeNode>> QuadtreeNode::GetChildNodes()
 }
 
 bool QuadtreeNode::HasChildNodes() const
-{
-	//UE_LOG(LogTemp, Warning, TEXT("Adding child node nr: %d"), childNodes.Num());
+{	//UE_LOG(LogTemp, Warning, TEXT("Adding child node nr: %d"), childNodes.Num());
+
 	return childNodes.Num() > 0;
 }
 
-TArray<FVector2D> QuadtreeNode::GenerateUVS(TArray<FVector2D>TexCoordsIn, int Resolution) {
-	TexCoordsIn.Init(FVector2D(0, 0), Resolution * Resolution);
-
-	for (int x = 0; x < Resolution; x++) {
-		for (int y = 0; y < Resolution; y++) {
-			int index = GetIndexForGridCoordinates(y, x, Resolution);
-			FVector2D Percentage = FVector2D(x, y) / (Resolution);
-			TexCoordsIn[index] = Percentage;
-		}
+void QuadtreeNode::readFile()
+{
+	FString CompleteFilePath = "C:/Users/Admin/Downloads/Cubemap//50N030E.pgw";
+	TArray<FString> FileData;
+	FileData.Init("TEST", 5);
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*CompleteFilePath))
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("Could not Find File"));
+		return;
 	}
-	return TexCoordsIn;
+
+	FFileHelper::LoadFileToStringArray(FileData, *CompleteFilePath);
+	//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Red, FString::Printf(TEXT("Longitude: ")) + FileData[4]);
+	//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Blue, FString::Printf(TEXT("Latitude: ")) + FileData[5]);
+	FileData.Empty();
 }
 
 void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, FVector LocalUpIn, int LodLevel) {
 
-
+	readFile();
 	RMC = NewObject<URuntimeMeshComponentStatic>(in);
 	RMC->RegisterComponent();
+
 	RMC->Initialize(StaticProviderIn);
 
-	int NoiseSamplesPerLine = 8;
+	int NoiseSamplesPerLine = 16;
 	double NoiseInputScale = 0.01; // Making this smaller will "stretch" the perlin noise terrain
 	double NoiseOutputScale = 2000; // Making this bigger will scale the terrain's height
 
@@ -142,18 +151,42 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 
 	FString TexturePath = "Texture2D'/Game/simplex.simplex'";
 	FString sPath = "Material'/Game/simplex_Mat.simplex_Mat'";
-	FString LocalPath = "C:/Users/Admin/Downloads/Tiles/1.png";
-	if (Texture == nullptr) {
-		LoadTextureFromPath(LocalPath);
-	}
+	FString LocalPath = "Texture2D'/Game/Heightmaps/posx.posx'";
 
+		if (LocalUpIn.X > 0) {
+			 LocalPath = "Texture2D'/Game/Heightmaps/negz.negz'";
+		}
+		else if (LocalUpIn.Y > 0) {
+			LocalPath = "Texture2D'/Game/Heightmaps/posx.posx'";
+		}
+		else if (LocalUpIn.Z > 0) {
+			 LocalPath = "Texture2D'/Game/Heightmaps/posy.posy'";
+		}
 
-	TArray<double> HeightMap;/* = CalculateHeightMap(Texture);*/
+		else if (LocalUpIn.X < 0) {
+			 LocalPath = "Texture2D'/Game/Heightmaps/posz.posz'";
+		}
+		else if (LocalUpIn.Y < 0) {
+			LocalPath = "Texture2D'/Game/Heightmaps/negx.negx'";
+		}
+		else if (LocalUpIn.Z < 0) {
+			LocalPath = "Texture2D'/Game/Heightmaps/negy.negy'";
+		}
+	
+	
+	Mat = LoadObjFromPath<UMaterial>(FName(sPath));
+	DynMat = UMaterialInstanceDynamic::Create(Mat, in);
+	UMaterial* terrainMaterialInstance = LoadObjFromPath<UMaterial>(FName(*sPath));
+	UTexture2D* temptexture = LoadObjFromPath<UTexture2D>(FName(*LocalPath));
+
+	TArray<double> HeightMap;
 	HeightMap.Init(0, NoiseSamplesPerLine * NoiseSamplesPerLine);
+	
+	//if(NodeLOD >= 8){ HeightMap = CalculateHeightMap(temptexture); }
 
 	Vertices = GenerateVertices(in,Vertices, NoiseSamplesPerLine, LocalUpIn, HeightMap);
 	Triangles = GenerateTriangles(NoiseSamplesPerLine, Triangles, 0);
-	TexCoords = GenerateUVS(TexCoords, NoiseSamplesPerLine);
+	GenerateUVS(NoiseSamplesPerLine);
 
 	TArray<FColor> Colors;
 	Colors.Init(FColor::White, NoiseSamplesPerLine * NoiseSamplesPerLine);
@@ -165,13 +198,16 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 	Tangents.Init(FRuntimeMeshTangent(0, 0, 0), NoiseSamplesPerLine * NoiseSamplesPerLine);
 
 	FRuntimeMeshCollisionSettings runtimeMeshSettings;
-	runtimeMeshSettings.bUseComplexAsSimple = true;
+	runtimeMeshSettings.bUseComplexAsSimple = false;
 	runtimeMeshSettings.bUseAsyncCooking = true;
 
-	UMaterial* terrainMaterialInstance = LoadObjFromPath<UMaterial>(FName(*sPath));
-	StaticProviderIn->SetupMaterialSlot(0, TEXT("Material"), terrainMaterialInstance);
+	DynMat->SetTextureParameterValue(FName("Texture"), temptexture);
+
+	StaticProviderIn->SetupMaterialSlot(0, TEXT("Material"), DynMat);
+
 	StaticProviderIn->SetCollisionSettings(runtimeMeshSettings);
 	StaticProviderIn->CreateSectionFromComponents(0, SectionID, 0, Vertices, Triangles, Normals, TexCoords, Colors, Tangents, ERuntimeMeshUpdateFrequency::Frequent, true);
+
 	//GEngine->ForceGarbageCollection(true);
 }
 
@@ -181,7 +217,7 @@ TArray<double> QuadtreeNode::CalculateHeightMap(UTexture2D* TexIn) {
 	TexIn->SRGB = false;
 	TexIn->UpdateResource();
 
-	const FColor* FormatedImageData = static_cast<const FColor*>(TexIn->PlatformData->Mips[0].BulkData.LockReadOnly());
+	const FColor* FormatedImageData = reinterpret_cast<const FColor*>(TexIn->PlatformData->Mips[0].BulkData.LockReadOnly());
 	TArray<double> HeightMap;
 	FColor tempColor;
 
@@ -221,8 +257,7 @@ void QuadtreeNode::LoadTextureFromPath(const FString& FullFilePath)
 		{
 			Texture = UTexture2D::CreateTransient(ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), PF_R8G8B8A8);
 		
-
-				//Valid?
+			//Valid?
 			if (!Texture)
 			{
 				Texture = nullptr;
@@ -243,6 +278,61 @@ void QuadtreeNode::LoadTextureFromPath(const FString& FullFilePath)
 }
 
 
+void QuadtreeNode::GenerateUVS( int Resolution) {
+	TexCoords.Init(FVector2D(0, 0), Resolution * Resolution);
+		
+		for (int x = 0; x < Resolution; x++) {
+				for (int y = 0; y < Resolution; y++) {
+					int index = GetIndexForGridCoordinates(x, y, Resolution);
+					FVector2D Percentage =  FVector2D(x, y) / (Resolution);
+
+					if (NodeLOD > 0) {
+						if (NodeLOD == 1) {
+							if (NodePosition == 4) { //Top left 4
+								Percentage = FVector2D(x , y + Resolution) / (Resolution * 2);
+							}
+							if (NodePosition == 1) { //Bottom Right 1
+								Percentage = FVector2D(x + Resolution, y+1) / (Resolution * 2);
+							
+							}
+							if (NodePosition == 2) {//Top Right 2
+					
+								Percentage = FVector2D(x +  Resolution, y + Resolution) / (Resolution * 2);
+							
+							}
+							if (NodePosition == 3) {//Bottom Left
+								Percentage = FVector2D(x, y) / (Resolution * 2);
+							}
+						}
+						else {
+
+							if (NodePosition == 4) { //Top left
+								Percentage = FVector2D(x, y + Resolution) / (Resolution * 2);
+							}
+							if (NodePosition == 1) { //Bottom Right
+								Percentage = FVector2D(x + Resolution, y) / (Resolution * 2);
+
+							}
+							if (NodePosition == 2) {//Top Right
+									Percentage.X = x + Resolution / (Resolution * 2);
+									Percentage.X = y + Resolution / (Resolution * 2);
+							}
+							if (NodePosition == 3) {//Bottom Left
+								Percentage.X = x + Resolution / (Resolution * 2);
+								Percentage.X = y + Resolution / (Resolution * 2);
+							}
+						}
+					}
+					else {
+						Percentage = FVector2D(x, y) / (Resolution);
+					}
+				
+					TexCoords[index] = Percentage;
+				}
+			}
+	//}
+	
+}
 
 TArray<FVector> QuadtreeNode::GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp, TArray<double> HeightMap) {
 	VerticesIn.Init(FVector(0,0,0), Resolution * Resolution); // 64x64
@@ -258,16 +348,14 @@ TArray<FVector> QuadtreeNode::GenerateVertices(AMyActor* in, TArray<FVector>Vert
 	
 			FVector2D Percentage = FVector2D(x, y) /( Resolution-1);	
 		
-			
 			PointOnCube = Position + ((Percentage.X - 0.5f) * 2 * axisA + (Percentage.Y - 0.5f) * 2 * axisB) * this->GetRadius();
 			PointOnCube.Normalize(1.0f);
-
+		
 			PointOnSphere = PointOnCube*in->PlanetSize;
+			//PointOnSphere.Z -= 636000000;
 			VerticesIn[index] = PointOnSphere;
 		}
 	}
-	//UE_LOG(LogTemp, Warning, TEXT("PointOnCube is %s"), *PointOnCube.ToString());
-	//UE_LOG(LogTemp, Warning, TEXT("PointOnCube is %s"), *PointOnSphere.ToString());
 	return VerticesIn;
 }
 

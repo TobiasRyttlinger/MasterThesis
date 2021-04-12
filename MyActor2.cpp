@@ -17,7 +17,7 @@ AMyActor2::AMyActor2()
 void AMyActor2::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
 	FString MatPath = "Material'/Game/simplex_Mat.simplex_Mat'";
 
 	Mat = LoadObjFromPath<UMaterial>(FName(MatPath));
@@ -29,13 +29,26 @@ void AMyActor2::BeginPlay()
 	StaticProvider = NewObject<URuntimeMeshProviderStatic>(this);
 	int SectionID = 0;
 	int TextureID = 0;
+	TextureArray.Init(nullptr, 39);
+	for (int i = 0; i < TextureArray.Num(); i++) {
+		
+		FString IntAsString = FString::FromInt(i);
+		FString sPath = "C:/Users/Admin/Downloads/Tiles/" + IntAsString + ".png";
+		LoadTextureFromPath(sPath);
+		if (Texture) {
+			TextureArray[i] = (Texture);
+		}
+	
+	}
+
 	for (float y = 0; y < 10; y++) {
 		for (float x = 0; x < 10; x++) {
 			if (FMath::Fmod(x, 2.0f) == 0 && FMath::Fmod(y, 2.0f) == 0) {
-				Position = FVector(x, y, 0);
 
+				Position = FVector(x, y, 0);
 				GenerateNodeMesh(StaticProvider, localUp, Position, SectionID, TextureID);
 				SectionID++;
+
 			}
 		}
 	}
@@ -47,22 +60,44 @@ static bool isInit = false;
 void AMyActor2::Tick(float DeltaTime)
 {
 
-	int rand = FMath::RandRange(0, 39);
-	FString IntAsString = FString::FromInt(rand);
-	FString sPath = "C:/Users/Admin/Downloads/Tiles/" + IntAsString + ".png";
-	FString newPath = "Texture2D'/Game/simplex.simplex'";
 
 
+	FString newPath = "Texture2D'/Game/Heightmaps/negx.negx'";
 
-	if (counter > 0.0f) {
-		LoadTextureFromPath(sPath);
-		DynMat->SetTextureParameterValue(FName("Texture"), Texture);
-		for (int i = 0; i < 25; i++) {
-			StaticProvider->SetupMaterialSlot(i, TEXT("Material"), DynMat);
+//	if (counter > 0.6f) {
+
+		int rand = FMath::RandRange(0, TextureArray.Num()-1);
+		if (rand == 0) {
+			newPath =  "Texture2D'/Game/Heightmaps/negx.negx'";
 		}
+		if (rand == 1) {
+			newPath = "Texture2D'/Game/Heightmaps/negy.negy'";
+		}
+		if (rand == 2) {
+			newPath = "Texture2D'/Game/Heightmaps/negz.negz'";
+		}
+		if (rand == 3) {
+			newPath = "Texture2D'/Game/Heightmaps/posx.posx'";
+		}
+		if (rand == 4) {
+			newPath = "Texture2D'/Game/Heightmaps/posy.posy'";
+
+		}
+		if (rand == 5) {
+			newPath = "Texture2D'/Game/Heightmaps/posz.posz'";
+		}
+		UTexture2D* temptexture = LoadObjFromPath<UTexture2D>(FName(*newPath));
+		if (TextureArray.Num() > 0) {
+			DynMat->SetTextureParameterValue(FName("Texture"), temptexture);
+			for (int i = 0; i < 25; i++) {
+				StaticProvider->SetupMaterialSlot(i, TEXT("Material"), DynMat);
+			}
+		}
+		//DynMat->SetTextureParameterValue(FName("Texture"),nullptr);
+
 
 		counter = 0;
-	}
+	//}
 
 	GEngine->ForceGarbageCollection(true);
 
@@ -79,7 +114,7 @@ TArray<double> AMyActor2::CalculateHeightMap(UTexture2D* TexIn) {
 	TexIn->SRGB = false;
 	TexIn->UpdateResource();
 
-	const FColor* FormatedImageData = static_cast<const FColor*>(TexIn->PlatformData->Mips[0].BulkData.LockReadOnly());
+	const FColor* FormatedImageData = reinterpret_cast<const FColor*>(TexIn->PlatformData->Mips[0].BulkData.LockReadOnly());
 	TArray<double> HeightMap;
 	FColor tempColor;
 

@@ -47,6 +47,8 @@ public:
 		TArray<int> Triangles;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 		TArray<FVector2D> TexCoords;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<UTexture2D*> TextureArray;
 
 	double counter;
 
@@ -75,7 +77,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UMaterial* Mat = nullptr;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+
 		UTexture2D* Texture = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UMaterialInstanceDynamic* DynMat = nullptr;
