@@ -86,9 +86,9 @@ void AMyActor2::Tick(float DeltaTime)
 		if (rand == 5) {
 			newPath = "Texture2D'/Game/Heightmaps/posz.posz'";
 		}
-		UTexture2D* temptexture = LoadObjFromPath<UTexture2D>(FName(*newPath));
+		//UTexture2D* temptexture = LoadObjFromPath<UTexture2D>(FName(*newPath));
 		if (TextureArray.Num() > 0) {
-			DynMat->SetTextureParameterValue(FName("Texture"), temptexture);
+			DynMat->SetTextureParameterValue(FName("Texture"), TextureArray[rand]);
 			for (int i = 0; i < 25; i++) {
 				StaticProvider->SetupMaterialSlot(i, TEXT("Material"), DynMat);
 			}

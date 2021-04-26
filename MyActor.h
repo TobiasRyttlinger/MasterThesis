@@ -20,7 +20,7 @@ public:
 	AMyActor();
 
 
-	double PlanetSize = 636000000;//636000000;
+	double PlanetSize = 636000000;
 
 	float counter;
 protected:
@@ -30,6 +30,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 		USceneComponent* RootComp;
 
+	UTexture2D* LoadTextureFromPath(const FString& FullFilePath);
 	//TArray<UTexture2D> Textures;
 
 public:

@@ -29,7 +29,7 @@ public:
 	~QuadtreeNode();
 
 	/** Calculate Array of pixelvalues. */
-	TArray<double> CalculateHeightMap(UTexture2D* TexIn);
+	void CalculateHeightMap();
 	/** Texture streaming function. */
 	void LoadTextureFromPath(const FString& FullFilePath);
 
@@ -44,7 +44,7 @@ public:
 
 
 	/** Initialise this node. */
-	void initialiseNode(TSharedPtr<QuadtreeNode> Parent, FVector Position, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos);
+	void initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, TSharedPtr<QuadtreeNode> Parent, FVector Position, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos);
 
 	/** Get the parent node to this node. */
 	TSharedPtr<QuadtreeNode> GetParentNode();
@@ -64,8 +64,12 @@ public:
 	/** Get the distance from the root node of the tree. */
 	int GetDistance();
 
+	FString GetTexture(FVector VecUpin);
 	/** Get the distance from the root node of the tree. */
 	double GetRadius();
+
+	/** Convert to cartesian coordinates from longitude and latitude. */
+	FVector ToCartesian(double Longitude, double Latitude);
 
 	/** Get the distance from the root node of the tree. */
 	FVector GetPosition();
@@ -82,12 +86,9 @@ public:
 	/** Get the node which contains a given position. */
 	TSharedPtr<QuadtreeNode> GetNode(FVector position);
 
-	/** Convert to spherical Coordinates */
-	void InitSphericalCoords(TArray<FVector> CartesianCoords);
-	/** Convert to spherical Coordinates */
-	void CartesianToLatLong(FVector CartesianCoords);
-	/** Convert to spherical Coordinates */
-	void SphericalToWgs84(TArray<FVector> LatLongIn);
+	/** Convert to LatLong Coordinates */
+	FVector2D ToLatLong(FVector inPosition);
+
 
 	/* Get a copy of the node position member variable. */
 	int GetNodePosition() const;
@@ -104,16 +105,16 @@ public:
 
 	void readFile();
 
-	void GenerateUVS( int Resolution);
+	void GenerateUVS(int Resolution, TArray<FVector> inVerts);
 
-	TArray<FVector> GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp, TArray<double> HeightMap);
+	TArray<FVector> GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp);
 
 	int GetIndexForGridCoordinates(int x, int y, int NoiseSamplesPerLine);
 
 	FVector2D GetPositionForGridCoordinates(int x, int y, int NoiseResolution);
 
 	TArray<int> GenerateTriangles(int NoiseSamplesPerLine, TArray<int>Triangles, int TriangleOffset);
-
+	FString GetHeightMap(FVector VecUpin);
 	TArray<FVector> GetVertices();
 	TArray<int> GetTriangles();
 	TSharedPtr<QuadtreeNode> GetRootNode();
@@ -131,7 +132,12 @@ public:
 		UTexture2D* Texture = nullptr;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		UMaterialInstanceDynamic* DynMat = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		UTexture2D* HeightMapTexture = nullptr;
 
+
+
+	int MeshResolution;
 	template <typename ObjClass>
 	static FORCEINLINE ObjClass* LoadObjFromPath(const FName& Path)
 	{
@@ -172,7 +178,7 @@ private:
 
 	/** LocalUp of the curent node mesh*/
 	FVector LocalUp;
-
+	TArray<double> HeightMap;
 	/** Mesh data of the curent node*/
 	TArray<FVector> SphericalCoords;
 	FVector2D LatLong;
