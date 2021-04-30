@@ -26,14 +26,12 @@ Quadtree::Quadtree(AMyActor* in, FVector inlocalUp, double inRadius, int inLodLe
 	Thresholds.Add(PlanetRadius / 6); //7
 	Thresholds.Add(PlanetRadius / 8); //8
 
-
-
 	AxisA = FVector(inlocalUp.Y, inlocalUp.Z, inlocalUp.X);
 	AxisB = FVector::CrossProduct(inlocalUp, AxisA);
 	PlanetMax = PlanetRadius * 1.00000139119;
 	RootNode = CreateNode(nullptr, LocalUp * PlanetRadius, PlanetRadius, PlanetLod, LocalUp, AxisA, AxisB, 10);
 	VisiblechildrenNodes.Add(RootNode);
-	
+
 	//InitialiseNodes(RootNode);
 	//GetVisibleChildren(RootNode);
 
@@ -41,7 +39,7 @@ Quadtree::Quadtree(AMyActor* in, FVector inlocalUp, double inRadius, int inLodLe
 
 Quadtree::~Quadtree()
 {
-
+	//	StaticProvider->ConditionalBeginDestroy();
 }
 
 TSharedPtr<QuadtreeNode> Quadtree::GetRootNode()
@@ -84,15 +82,18 @@ void Quadtree::UpdateMesh(TSharedPtr<QuadtreeNode> CurrentNode) {
 
 	//Distance between camera and meshcenter
 	double distance = FVector::Dist(CameraPos, MeshPos);
-	/*MeshPos.Y += MeshPos.Y;
-	MeshPos.X -= MeshPos.X;*/
+
 	//Find Lat and Long for meshcenter
 	FVector2D LatLong;
 	LatLong.X = FMath::CeilToDouble(FMath::Asin(CameraPos.Z / this->PlanetRadius) * 180 / PI);
 	LatLong.Y = -FMath::CeilToDouble(FMath::Atan2(CameraPos.Y, CameraPos.X) * 180 / PI);
-	
 
-	if (distance <= CurrentNode->NodeRadius *2.0f) {
+	float scale = 2.2f;
+	if (CurrentNode->NodeLOD > 7) {
+		scale = 3.0f;
+	}
+
+	if (distance <= CurrentNode->NodeRadius * scale) {
 		//IF nodes has children check them
 		if (CurrentNode->GetChildNodes().Num() > 0) {
 			for (auto child : CurrentNode->GetChildNodes()) {
@@ -107,20 +108,22 @@ void Quadtree::UpdateMesh(TSharedPtr<QuadtreeNode> CurrentNode) {
 			else {
 				GetVisibleChildren(CurrentNode);
 			}
-			
+
 		}
 	}
 	//If distance is larger than radius
 	else {
-		GetVisibleChildren(CurrentNode);
 		//If the node has children delete them and render the node
 		if (CurrentNode->GetChildNodes().Num() > 0) {
 			for (auto child : CurrentNode->GetChildNodes()) {
+				child->ClearChildren();
 				StaticProvider->RemoveSection(0, child->SectionID);
 			}
 			CurrentNode->ClearChildren();
+
 		}
-	
+		VisiblechildrenNodes.Add(CurrentNode);
+
 	}
 }
 
@@ -157,7 +160,7 @@ void Quadtree::GetVisibleChildren(TSharedPtr<QuadtreeNode> CurrentNode) {
 
 	//UE_LOG(LogTemp, Warning, TEXT("Angle: %f"), Angle);
 
-	//if ( Angle < 1.45 && VisibilitySphere >= distance) {
+	//if (Angle < 1.45 && VisibilitySphere >= distance) {
 		VisiblechildrenNodes.Add(CurrentNode);
 	//}
 }
@@ -182,11 +185,14 @@ void Quadtree::GenerateTerrain(TArray<TSharedPtr<QuadtreeNode>> inNodes) {
 }
 
 void Quadtree::InitialiseNodes(TSharedPtr<QuadtreeNode> parentNode)
-{
+{	
+
 	double halfRadius = parentNode->GetRadius() * 0.5;
-	if (parentNode->NodeLOD < Thresholds.Num()) {
+	UE_LOG(LogTemp, Warning, TEXT("parentNode->NodeLOD->NodeLODle: %d"), parentNode->GetLOD());
+	if (parentNode->GetLOD() <= 5) {
 		//UE_LOG(LogTemp, Warning, TEXT("Generate nodes for LOD level: %d"), parentNode->GetLOD());
 		// Bottom right node
+
 		FVector tlPos = parentNode->GetPosition() + (AxisA - AxisB) * halfRadius;
 		FVector trPos = parentNode->GetPosition() + (AxisA + AxisB) * halfRadius;
 		FVector brPos = parentNode->GetPosition() + (AxisB - AxisA) * halfRadius;
@@ -196,13 +202,34 @@ void Quadtree::InitialiseNodes(TSharedPtr<QuadtreeNode> parentNode)
 		TSharedPtr<QuadtreeNode> bl = CreateNode(parentNode, blPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 3);
 		TSharedPtr<QuadtreeNode> tr = CreateNode(parentNode, trPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 2);
 		TSharedPtr<QuadtreeNode> tl = CreateNode(parentNode, tlPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 1);
-		
+
 		UpdateMesh(tl);
 		UpdateMesh(tr);
 		UpdateMesh(bl);
 		UpdateMesh(br);
 
-		
+
+	}
+	else if ((parentNode->Texture)) {
+		//UE_LOG(LogTemp, Warning, TEXT("Generate nodes for LOD level: %d"), parentNode->GetLOD());
+		// Bottom right node
+
+		FVector tlPos = parentNode->GetPosition() + (AxisA - AxisB) * halfRadius;
+		FVector trPos = parentNode->GetPosition() + (AxisA + AxisB) * halfRadius;
+		FVector brPos = parentNode->GetPosition() + (AxisB - AxisA) * halfRadius;
+		FVector blPos = parentNode->GetPosition() - (AxisB + AxisA) * halfRadius;
+
+		TSharedPtr<QuadtreeNode> br = CreateNode(parentNode, brPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 4);
+		TSharedPtr<QuadtreeNode> bl = CreateNode(parentNode, blPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 3);
+		TSharedPtr<QuadtreeNode> tr = CreateNode(parentNode, trPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 2);
+		TSharedPtr<QuadtreeNode> tl = CreateNode(parentNode, tlPos, halfRadius, parentNode->NodeLOD + 1, parentNode->GetLocalUp(), AxisA, AxisB, 1);
+
+		UpdateMesh(tl);
+		UpdateMesh(tr);
+		UpdateMesh(bl);
+		UpdateMesh(br);
+
+
 	}
 }
 
@@ -213,8 +240,12 @@ TSharedPtr<QuadtreeNode> Quadtree::CreateNode(TSharedPtr<QuadtreeNode> parent, F
 	if (parent.IsValid())
 	{
 		parent->AddChildNode(newNode);
+		newNode->SetParentNode(TSharedPtr<QuadtreeNode>(parent));
 	}
-	newNode->SetParentNode(TSharedPtr<QuadtreeNode>(parent));
+	else {
+		newNode->SetParentNode(nullptr);
+	}
+
 	newNode->initialiseNode(QT_Actor, StaticProvider, parent, Position, radius, lodLevel, localUp, axisA, axisB, pos);
 	return newNode;
 }

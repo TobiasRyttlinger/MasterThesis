@@ -30,25 +30,25 @@ public:
 
 	float realtimeSeconds = UGameplayStatics::GetRealTimeSeconds(GetWorld());
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		URuntimeMeshProviderStatic* StaticProvider;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		URuntimeMeshProvider* Provider;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		URuntimeMeshComponentStatic* RMCS;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		URuntimeMeshComponent* RMC;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		TArray<FVector> Vertices;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		TArray<int> Triangles;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		TArray<FVector2D> TexCoords;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TArray<UTexture2D*> TextureArray;
+	UPROPERTY()
+		TArray<UTexture2D*> TextureArray;
 
 	double counter;
 
@@ -75,11 +75,11 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY()
 		UMaterial* Mat = nullptr;
-
+	UPROPERTY()
 		UTexture2D* Texture = nullptr;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY()
 		UMaterialInstanceDynamic* DynMat = nullptr;
 
 	void LoadTextureFromPath(const FString& FullFilePath);

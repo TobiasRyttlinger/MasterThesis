@@ -59,9 +59,6 @@ static bool isInit = false;
 // Called every frame
 void AMyActor2::Tick(float DeltaTime)
 {
-
-
-
 	FString newPath = "Texture2D'/Game/Heightmaps/negx.negx'";
 
 //	if (counter > 0.6f) {
@@ -99,7 +96,7 @@ void AMyActor2::Tick(float DeltaTime)
 		counter = 0;
 	//}
 
-	GEngine->ForceGarbageCollection(true);
+	//GEngine->ForceGarbageCollection(true);
 
 
 	isInit = true;
@@ -200,11 +197,11 @@ void AMyActor2::GenerateNodeMesh(URuntimeMeshProviderStatic* StaticProviderIn, F
 
 	TArray<double> HeightMap = CalculateHeightMap(Texture);
 
-
+	
 	Vertices = GenerateVertices(Vertices, NoiseSamplesPerLine, localUp, Position, HeightMap);
 	Triangles = GenerateTriangles(NoiseSamplesPerLine, Triangles, 0);
-	TexCoords = GenerateUVS(TexCoords, NoiseSamplesPerLine);
 
+	
 	TArray<FColor> Colors;
 	Colors.Init(FColor::White, NoiseSamplesPerLine * NoiseSamplesPerLine);
 
@@ -215,7 +212,7 @@ void AMyActor2::GenerateNodeMesh(URuntimeMeshProviderStatic* StaticProviderIn, F
 	Tangents.Init(FRuntimeMeshTangent(0, 0, 0), NoiseSamplesPerLine * NoiseSamplesPerLine);
 
 	FRuntimeMeshCollisionSettings runtimeMeshSettings;
-	runtimeMeshSettings.bUseComplexAsSimple = true;
+	runtimeMeshSettings.bUseComplexAsSimple = false;
 	runtimeMeshSettings.bUseAsyncCooking = true;
 
 	UMaterial* terrainMaterialInstance = LoadObjFromPath<UMaterial>(FName(*sPath));
@@ -224,11 +221,6 @@ void AMyActor2::GenerateNodeMesh(URuntimeMeshProviderStatic* StaticProviderIn, F
 	StaticProviderIn->CreateSectionFromComponents(0, SectionID, SectionID, Vertices, Triangles, Normals, TexCoords, Colors, Tangents, ERuntimeMeshUpdateFrequency::Frequent, true);
 
 }
-
-void  AMyActor2::ChangeMaterial(URuntimeMeshProviderStatic* StaticProviderIn, int TextureID) {
-
-}
-
 
 
 //----------------------------------------------------------------------------------//
@@ -248,7 +240,7 @@ TArray<FVector2D> AMyActor2::GenerateUVS(TArray<FVector2D>TexCoordsIn, int Resol
 
 
 TArray<FVector> AMyActor2::GenerateVertices(TArray<FVector>VerticesIn, int Resolution, FVector localUp, FVector Position, TArray<double> HeightMap) {
-	VerticesIn.Init(FVector(0, 0, 0), Resolution * Resolution); // 64x64
+	VerticesIn.Init(FVector(0, 0, 0), Resolution * Resolution);
 
 	FVector axisA = FVector(localUp.Y, localUp.Z, localUp.X);
 	FVector axisB = FVector::CrossProduct(localUp, axisA);
@@ -260,7 +252,7 @@ TArray<FVector> AMyActor2::GenerateVertices(TArray<FVector>VerticesIn, int Resol
 			int index = GetIndexForGridCoordinates(x, y, Resolution);
 
 			FVector2D Percentage = FVector2D(x, y) / (Resolution);
-
+			TexCoords.Add(Percentage);
 			PointOnCube = Position + ((Percentage.X - 0.5f) * 2 * axisA + (Percentage.Y - 0.5f) * 2 * axisB);
 			if (HeightMap.Num() > 0 && index <= HeightMap.Num() - 1) {
 				PointOnCube.Z = HeightMap[index];
@@ -279,13 +271,6 @@ TArray<FVector> AMyActor2::GenerateVertices(TArray<FVector>VerticesIn, int Resol
 
 int AMyActor2::GetIndexForGridCoordinates(int x, int y, int NoiseSamplesPerLine) {
 	return x + y * NoiseSamplesPerLine;
-}
-
-FVector2D AMyActor2::GetPositionForGridCoordinates(int x, int y, int NoiseResolution) {
-	return FVector2D(
-		x * NoiseResolution,
-		y * NoiseResolution
-	);
 }
 
 TArray<int>  AMyActor2::GenerateTriangles(int NoiseSamplesPerLine, TArray<int>TrianglesIn, int TriangleOffset) {

@@ -33,8 +33,10 @@ public:
 	/** Texture streaming function. */
 	void LoadTextureFromPath(const FString& FullFilePath);
 
+	FVector computeNormals(FVector a, FVector b, FVector c);
+
 	/**Runtime Mesh Component for this node*/
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY()
 		URuntimeMeshComponentStatic* RMC;
 
 
@@ -105,11 +107,13 @@ public:
 
 	void readFile();
 
-	void GenerateUVS(int Resolution, TArray<FVector> inVerts);
+	void GetPixelValues();
 
 	TArray<FVector> GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp);
 
 	int GetIndexForGridCoordinates(int x, int y, int NoiseSamplesPerLine);
+
+	TArray<FVector> ApplyHeightMap(TArray<FVector>VerticesIn);
 
 	FVector2D GetPositionForGridCoordinates(int x, int y, int NoiseResolution);
 
@@ -117,25 +121,36 @@ public:
 	FString GetHeightMap(FVector VecUpin);
 	TArray<FVector> GetVertices();
 	TArray<int> GetTriangles();
+
 	TSharedPtr<QuadtreeNode> GetRootNode();
 	/** LOD of the curent node mesh*/
 	int NodeLOD;
-	TSharedPtr<QuadtreeNode> parentNode;
+
+	UPROPERTY()
+		TSharedPtr<QuadtreeNode> parentNode;
+	UPROPERTY()
+		TArray<double> PixelValues;
 	/** Radius of the curent node mesh*/
 	double NodeRadius;
 	int SectionID;
 	bool Rendered;
-	TArray<FVector2D> TexCoords;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+
+	UPROPERTY()
+		TArray<FVector2D> TexCoords;
+	UPROPERTY()
 		UMaterial* Mat = nullptr;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY()
 		UTexture2D* Texture = nullptr;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY()
 		UMaterialInstanceDynamic* DynMat = nullptr;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY()
 		UTexture2D* HeightMapTexture = nullptr;
-
-
+	UPROPERTY()
+		TArray<FVector> Normals;
+	UPROPERTY()
+		TArray<FRuntimeMeshTangent> Tangents;
+	UPROPERTY()
+		TArray<FColor> Colors;
 
 	int MeshResolution;
 	template <typename ObjClass>
@@ -163,10 +178,12 @@ private:
 
 private:
 	/** The bounding box for this node. */
-	TSharedPtr<FBox2D> boundingBox;
+	UPROPERTY()
+		TSharedPtr<FBox2D> boundingBox;
 
 	/** Child nodes held by this node. */
-	TArray<TSharedPtr<QuadtreeNode>> childNodes;
+	UPROPERTY()
+		TArray<TSharedPtr<QuadtreeNode>> childNodes;
 
 	/** The position of this node relevant to it's parent. */
 	int NodePosition;
@@ -178,13 +195,19 @@ private:
 
 	/** LocalUp of the curent node mesh*/
 	FVector LocalUp;
-	TArray<double> HeightMap;
+	UPROPERTY()
+		TArray<double> HeightMap;
 	/** Mesh data of the curent node*/
-	TArray<FVector> SphericalCoords;
-	FVector2D LatLong;
-	TArray<FVector> Wgs84;
-	TArray<FVector> Vertices;
-	TArray<int> Triangles;
+	UPROPERTY()
+		TArray<FVector> SphericalCoords;
+	UPROPERTY()
+		FVector2D LatLong;
+	UPROPERTY()
+		TArray<FVector> Wgs84;
+	UPROPERTY()
+		TArray<FVector> Vertices;
+	UPROPERTY()
+		TArray<int> Triangles;
 
 	FVector AxisA;
 	FVector AxisB;

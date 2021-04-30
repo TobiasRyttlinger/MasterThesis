@@ -9,11 +9,14 @@ QuadtreeNode::QuadtreeNode()
 
 QuadtreeNode::~QuadtreeNode()
 {
+	GEngine->ForceGarbageCollection(true);
+
+	RMC = NULL;
 }
 
 void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, TSharedPtr<QuadtreeNode> Parent, FVector inPosition, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos) {
 	parentNode = Parent;
-	Position = inPosition;
+	Position = inPosition;	
 	NodeRadius = radius;
 	NodeLOD = lodLevel;
 	LocalUp = localUp;
@@ -25,28 +28,42 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 	FString tempSectionID = FString("0");
 	initialised = false;
 	LatLong = ToLatLong(Position);
-	MeshResolution = 16;
+	MeshResolution = 32;
+
+	//Memory Leak solved
 	RMC = NewObject<URuntimeMeshComponentStatic>(in);
 	RMC->RegisterComponent();
 	RMC->Initialize(StaticProviderIn);
+
 	HeightMap.Init(0, MeshResolution * MeshResolution);
 	FRuntimeMeshCollisionSettings runtimeMeshSettings;
+
 	runtimeMeshSettings.bUseComplexAsSimple = false;
 	runtimeMeshSettings.bUseAsyncCooking = true;
+	//URuntimeMeshModifierNormals::CalculateNormalsTangents(MeshData, true);
 	StaticProviderIn->SetCollisionSettings(runtimeMeshSettings);
+
+
 
 	if (Parent.IsValid()) {
 
 		FString ParentID = FString::FromInt(Parent->SectionID);
-		if (NodeLOD == 5) {
-			ParentID = 0;
-		}
 
 		FString NodeID = FString::FromInt(NodePosition);
 		FString LodID = FString::FromInt(NodeLOD);
+
+
+		if (NodeLOD == 5) {
+
+			ParentID = 0;
+		}
+	
+
 		tempSectionID = ParentID + NodeID;
+
+
 	}
-	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, tempSectionID);
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, tempSectionID);
 	SectionID = FCString::Atoi(*tempSectionID);
 
 	//Load Texture
@@ -55,21 +72,33 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 	if (HeightMap.Num() == 0) {
 		HeightMap.Init(0, MeshResolution * MeshResolution);
 	}
+
 	//Load HeightMapTexture
 	if (NodeLOD == 8) {
 		FString HeightmapPath = GetHeightMap(LocalUp);
 		HeightMapTexture = LoadObjFromPath<UTexture2D>(FName(HeightmapPath));
 		//Load Heightmap pixel values or initialise empty array.
 		if (HeightMapTexture != nullptr) {
+		
 			HeightMapTexture->SRGB = false;
 			HeightMapTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
 			HeightMapTexture->UpdateResource();
 			CalculateHeightMap();
 
 		}
+		else {
+			HeightmapPath = "Texture2D'/Game/Heightmaps/LOD8/NoData.NoData'";
+			HeightMapTexture = LoadObjFromPath<UTexture2D>(FName(HeightmapPath));
+			HeightMapTexture->SRGB = false;
+			HeightMapTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+			HeightMapTexture->UpdateResource();
+
+
+		}
+		//GetPixelValues();
 	}
 
-	//Texture = HeightMapTexture;
+//	Texture = HeightMapTexture;
 }
 
 void QuadtreeNode::SetNodePosition(int position) {
@@ -221,7 +250,6 @@ FString QuadtreeNode::GetTexture(FVector VecUpin) {
 	else if (VecUpin.Z < 0) {
 		LocalPath = "Texture2D'/Game/BlueMarble/negy.negy'";
 	}
-
 	else {
 		LocalPath = "Texture2D'/Game/BlueMarble/posy.posy'";
 
@@ -266,7 +294,7 @@ FString QuadtreeNode::GetHeightMap(FVector VecUpin) {
 
 void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, FVector LocalUpIn, int LodLevel) {
 
-	readFile();
+	//readFile();
 
 	FString sPath = "Material'/Game/simplex_Mat.simplex_Mat'";
 
@@ -276,20 +304,14 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 
 	if (Vertices.Num() == 0) {
 		Vertices = GenerateVertices(in, Vertices, MeshResolution, LocalUpIn);
+		
 	}
+	
 	if (Triangles.Num() == 0) {
 		Triangles = GenerateTriangles(MeshResolution, Triangles, 0);
+		Vertices = ApplyHeightMap(Vertices);
 	}
-
-	TArray<FColor> Colors;
-	Colors.Init(FColor::White, MeshResolution * MeshResolution);
-
-	TArray<FVector> Normals;
-	Normals.Init(LocalUpIn, MeshResolution * MeshResolution);
-
-	TArray<FRuntimeMeshTangent> Tangents;
-	Tangents.Init(FRuntimeMeshTangent(0, 0, 0), MeshResolution * MeshResolution);
-
+	
 	DynMat->SetTextureParameterValue(FName("Texture"), Texture);
 
 	StaticProviderIn->SetupMaterialSlot(SectionID, FName("Material"), DynMat);
@@ -303,16 +325,16 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 }
 
 void QuadtreeNode::CalculateHeightMap() {
-	FTexture2DMipMap* MyMipMap = &HeightMapTexture->PlatformData->Mips[0];
+	FTexture2DMipMap* MyMipMap = &HeightMapTexture->PlatformData->Mips[5];
 	if (MyMipMap == nullptr) {
 		UE_LOG(LogTemp, Warning, TEXT("Breaking at MyMipMap"));
 		return;
 	}
-	FColor* data = (FColor*)HeightMapTexture->PlatformData->Mips[0].BulkData.LockReadOnly();
+	FColor* data = (FColor*)HeightMapTexture->PlatformData->Mips[5].BulkData.LockReadOnly();
 	FColor tempColor;
 	if (data == nullptr) {
 		UE_LOG(LogTemp, Warning, TEXT("Breaking at FormatedImageData"));
-		HeightMapTexture->PlatformData->Mips[0].BulkData.Unlock();
+		HeightMapTexture->PlatformData->Mips[5].BulkData.Unlock();
 		return;
 	}
 
@@ -323,12 +345,10 @@ void QuadtreeNode::CalculateHeightMap() {
 			tempColor = data[index];
 
 			double Value = (((double)tempColor.R / 255.0) + ((double)tempColor.G / 255.0) + ((double)tempColor.B / 255.0)) / 3.0;
-			//UE_LOG(LogTemp, Warning, TEXT("Value: %f"), Value);
 			HeightMap[index] = Value;
 		}
 	}
-
-	HeightMapTexture->PlatformData->Mips[0].BulkData.Unlock();
+	HeightMapTexture->PlatformData->Mips[5].BulkData.Unlock();
 
 }
 
@@ -374,7 +394,40 @@ void QuadtreeNode::LoadTextureFromPath(const FString& FullFilePath)
 
 }
 
-void QuadtreeNode::GenerateUVS(int Resolution, TArray<FVector> inVertices) {
+void QuadtreeNode::GetPixelValues() {
+	FTexture2DMipMap* MyMipMap = &Texture->PlatformData->Mips[5];
+
+	if (MyMipMap == nullptr) {
+		UE_LOG(LogTemp, Warning, TEXT("Breaking at MyMipMap"));
+		return;
+	}
+
+	FColor* data = (FColor*)Texture->PlatformData->Mips[5].BulkData.LockReadOnly();
+	FColor tempColor;
+
+	if (data == nullptr) {
+		UE_LOG(LogTemp, Warning, TEXT("Breaking at FormatedImageData"));
+		Texture->PlatformData->Mips[5].BulkData.Unlock();
+		return;
+	}
+
+	for (int x = 0; x < MyMipMap->SizeX; x++) {
+		for (int y = 0; y < MyMipMap->SizeY; y++) {
+
+			int index = x * MyMipMap->SizeY + y;
+			tempColor = data[index];
+
+			double Value = (((double)tempColor.R / 255.0) + ((double)tempColor.G / 255.0) + ((double)tempColor.B / 255.0)) / 3.0;
+
+			if (tempColor.G < 155) {
+				Value = 0;
+			}
+			PixelValues.Add(Value);
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("Generate nodes for LOD level: %d"), PixelValues.Num());
+
+	Texture->PlatformData->Mips[5].BulkData.Unlock();
 
 }
 
@@ -396,41 +449,94 @@ TArray<FVector> QuadtreeNode::GenerateVertices(AMyActor* in, TArray<FVector>Vert
 
 			PointOnCube = Position + ((Percentage.X - 0.5f) * 2 * axisA + (Percentage.Y - 0.5f) * 2 * axisB) * this->GetRadius();
 			TexCoords[index] = Percentage;
-
 			PointOnCube.Normalize();
-			if (localUp.X > 0) {
-				PointOnCube.X += HeightMap[index] * 0.01;
-			}
-			else if (localUp.Y > 0) {
-				PointOnCube.Y += HeightMap[index] * 0.01;
-			}
-			else if (localUp.Z > 0) {
-				PointOnCube.Z += HeightMap[index] * 0.01;
-			}
-			else if (localUp.X < 0) {
-				PointOnCube.X -= HeightMap[index] * 0.01;
-			}
-			else if (localUp.Y < 0) {
-				PointOnCube.Z -= HeightMap[index] * 0.01;
-			}
-			else if (localUp.Z < 0) {
-				PointOnCube.Y -= HeightMap[index] * 0.01;
-			}
 
-			PointOnSphere = PointOnCube * in->PlanetSize;
+			
 
-			VerticesIn[index] = PointOnSphere;
+			//if (localUp.X > 0) {
+			//	PointOnCube.X += HeightMap[index] * 0.01;
+			//}
+			//else if (localUp.Y > 0) {
+			//	PointOnCube.Y += HeightMap[index] * 0.01;
+			//}
+			//else if (localUp.Z > 0) {
+			//	//PointOnCube.Z += HeightMap[index] * 0.001;
+			//}
+			//else if (localUp.X < 0) {
+			//	PointOnCube.X -= HeightMap[index] * 0.01;
+			//}
+			//else if (localUp.Y < 0) {
+			//	PointOnCube.Z -= HeightMap[index] * 0.01;
+			//}
+			//else if (localUp.Z < 0) {
+			//	PointOnCube.Y -= HeightMap[index] * 0.01;
+			//}
+
+			//if (y < 1 && y > Resolution-1) {
+			//	if (x < 1 && y > Resolution -1) {
+			//		PointOnCube.Z = 0.2 * 0.001;
+			//	}
+			//}
+			//else {
+			//	PointOnCube.Z += HeightMap[index] * 0.001;
+			//}
+
+
+			if (x == 0 || y == 0 || x == Resolution-1 || y == Resolution-1) {
+			
+				VerticesIn[index].Z += 0.3* 0.001;
+			
+				
+			}
+			VerticesIn[index] = PointOnCube * 636000000;
 		}
 	}
 	return VerticesIn;
 }
 
+TArray<FVector>  QuadtreeNode::ApplyHeightMap(TArray<FVector>VerticesIn) {
 
+	for (int y = 1; y < MeshResolution -1 ; y++) {
+		for (int x =1 ; x < MeshResolution -1 ; x++) {
+
+			int index = GetIndexForGridCoordinates(x, y, MeshResolution);
+			VerticesIn[index] += Normals[index]*(HeightMap[index] * 0.0005 * 636000000) ;
+			/*if (LocalUp.X > 0) {
+				VerticesIn[index].X += HeightMap[index] * 0.01;
+			}
+			else if (LocalUp.Y > 0) {
+				VerticesIn[index].Y += HeightMap[index] * 0.01;
+			}
+			else if (LocalUp.Z > 0) {
+				VerticesIn[index].Z += HeightMap[index] * 0.001;
+			}
+			else if (LocalUp.X < 0) {
+				VerticesIn[index].X -= HeightMap[index] * 0.01;
+			}
+			else if (LocalUp.Y < 0) {
+				VerticesIn[index].Z -= HeightMap[index] * 0.01;
+			}
+			else if (LocalUp.Z < 0) {
+				VerticesIn[index].Y -= HeightMap[index] * 0.01;
+			}*/
+			//VerticesIn[index] = VerticesIn[index] * 636000000;
+		}
+
+	}
+	
+	return VerticesIn;
+}
 
 int QuadtreeNode::GetIndexForGridCoordinates(int x, int y, int MeshResolutionin) {
 	return x + y * MeshResolutionin;
 }
 
+FVector QuadtreeNode::computeNormals(FVector a, FVector b, FVector c)
+{
+	FVector temp = FVector::CrossProduct(b - a, c - a);
+	temp.Normalize();
+	return temp;
+}
 
 TArray<int>  QuadtreeNode::GenerateTriangles(int MeshResolutionin, TArray<int>TrianglesIn, int TriangleOffset) {
 
@@ -439,25 +545,35 @@ TArray<int>  QuadtreeNode::GenerateTriangles(int MeshResolutionin, TArray<int>Tr
 	int TrianglesArraySize = NumberOfQuadsPerLine * NumberOfQuadsPerLine * 6;
 	TrianglesIn.Init(0, TrianglesArraySize);
 	int TriangleIndex = 0;
-
+	Normals.Init(FVector(0, 0, 0), MeshResolutionin * MeshResolutionin);
+	Tangents.Init(FVector(0, 0, 0), MeshResolutionin * MeshResolutionin);
 	for (int y = 0; y < NumberOfQuadsPerLine; y++) {
 		for (int x = 0; x < NumberOfQuadsPerLine; x++) {
 
-			// Getting the indexes of the four vertices making up this quad
+			// Getting the indexes of the four quad vertices
 			int bottomLeftIndex = GetIndexForGridCoordinates(x, y, MeshResolutionin);
 			int topLeftIndex = GetIndexForGridCoordinates(x, y + 1, MeshResolutionin);
 			int topRightIndex = GetIndexForGridCoordinates(x + 1, y + 1, MeshResolutionin);
 			int bottomRightIndex = GetIndexForGridCoordinates(x + 1, y, MeshResolutionin);
 
+			//Calculate Normals for each triangle
+			Normals[bottomLeftIndex] = (computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
+
+			//Normals.Add(computeNormals(Vertices[topLeftIndex], Vertices[bottomRightIndex], Vertices[topRightIndex]));
+			//Tangents.Add(FVector(0, 0, 0));
+			Tangents[bottomLeftIndex] = (-computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
 			// Assigning the 6 triangle points to the corresponding vertex indexes, by going counter-clockwise.
 			TrianglesIn[TriangleIndex] = bottomLeftIndex + TriangleOffset;
 			TrianglesIn[TriangleIndex + 1] = topLeftIndex + TriangleOffset;
 			TrianglesIn[TriangleIndex + 2] = topRightIndex + TriangleOffset;
+
 			TrianglesIn[TriangleIndex + 3] = bottomLeftIndex + TriangleOffset;
 			TrianglesIn[TriangleIndex + 4] = topRightIndex + TriangleOffset;
 			TrianglesIn[TriangleIndex + 5] = bottomRightIndex + TriangleOffset;
 			TriangleIndex += 6;
+
 		}
+
 	}
 	return TrianglesIn;
 }
