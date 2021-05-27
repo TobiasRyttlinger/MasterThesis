@@ -1,9 +1,9 @@
 ﻿#include "QuadtreeNode.h"
 #include "DrawDebugHelpers.h"
+#include "../../../../../../../Program Files/Epic Games/UE_4.26/Engine/Plugins/Lumin/MagicLeap/Source/MagicLeap/Public/IMagicLeapPlugin.h"
 
 
-QuadtreeNode::QuadtreeNode()
-{
+QuadtreeNode::QuadtreeNode() {
 }
 
 
@@ -12,11 +12,12 @@ QuadtreeNode::~QuadtreeNode()
 	GEngine->ForceGarbageCollection(true);
 
 	RMC = NULL;
+	RMCTree = NULL;
 }
-
-void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, TSharedPtr<QuadtreeNode> Parent, FVector inPosition, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos) {
+static bool init = false;
+void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, URuntimeMeshProviderStaticMesh* StaticProviderTreeIn, TSharedPtr<QuadtreeNode> Parent, FVector inPosition, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos) {
 	parentNode = Parent;
-	Position = inPosition;	
+	Position = inPosition;
 	NodeRadius = radius;
 	NodeLOD = lodLevel;
 	LocalUp = localUp;
@@ -32,15 +33,17 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 
 	//Memory Leak solved
 	RMC = NewObject<URuntimeMeshComponentStatic>(in);
+	RMCTree = NewObject<URuntimeMeshComponentStatic>(in);
 	RMC->RegisterComponent();
+	RMCTree->RegisterComponent();
 	RMC->Initialize(StaticProviderIn);
-
+	RMCTree->Initialize(StaticProviderTreeIn);
+	Rendered = false;
 	HeightMap.Init(0, MeshResolution * MeshResolution);
 	FRuntimeMeshCollisionSettings runtimeMeshSettings;
 
 	runtimeMeshSettings.bUseComplexAsSimple = false;
 	runtimeMeshSettings.bUseAsyncCooking = true;
-	//URuntimeMeshModifierNormals::CalculateNormalsTangents(MeshData, true);
 	StaticProviderIn->SetCollisionSettings(runtimeMeshSettings);
 
 
@@ -55,20 +58,50 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 
 		if (NodeLOD == 5) {
 
-			ParentID = 0;
+			ParentID = "0";
 		}
-	
+
 
 		tempSectionID = ParentID + NodeID;
 
 
 	}
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, tempSectionID);
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, tempSectionID);
 	SectionID = FCString::Atoi(*tempSectionID);
 
-	//Load Texture
+	////Load Texture
 	FString TexturePath = GetTexture(LocalUp);
 	Texture = LoadObjFromPath<UTexture2D>(FName(TexturePath));
+
+
+	if (Texture != nullptr) {
+		/*if (NodeLOD >= 8 ) {
+			
+			Texture->SRGB = false;
+			Texture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+			TextureMipGenSettings old = Texture->MipGenSettings;
+			Texture->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
+			Texture->UpdateResource();
+
+			GetPixelValues();
+
+			Texture->SRGB = true;
+			
+			Texture->MipGenSettings = old;
+			Texture->CompressionSettings = TextureCompressionSettings::TC_Default;
+			Texture->UpdateResource();
+		}*/
+	}
+
+	else {
+		FString temppath = "Texture2D'/Game/Heightmaps/LOD8/NoData.NoData'";
+		Texture = LoadObjFromPath<UTexture2D>(FName(temppath));
+		Texture->SRGB = true;
+
+		Texture->CompressionSettings = TextureCompressionSettings::TC_Default;
+		Texture->UpdateResource();
+	}
+
 	if (HeightMap.Num() == 0) {
 		HeightMap.Init(0, MeshResolution * MeshResolution);
 	}
@@ -79,7 +112,7 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 		HeightMapTexture = LoadObjFromPath<UTexture2D>(FName(HeightmapPath));
 		//Load Heightmap pixel values or initialise empty array.
 		if (HeightMapTexture != nullptr) {
-		
+
 			HeightMapTexture->SRGB = false;
 			HeightMapTexture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
 			HeightMapTexture->UpdateResource();
@@ -95,11 +128,14 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 
 
 		}
-		//GetPixelValues();
-	}
+		//
+}
 
 //	Texture = HeightMapTexture;
 }
+
+
+
 
 void QuadtreeNode::SetNodePosition(int position) {
 	SectionID = position;
@@ -235,14 +271,17 @@ FString QuadtreeNode::GetTexture(FVector VecUpin) {
 	FString LocalPath = "Texture2D'/Game/BlueMarble/posx.posx'";
 
 	//Default maps Blue marble
+	//Positive
 	if (VecUpin.X > 0) {
 		LocalPath = "Texture2D'/Game/BlueMarble/posx.posx'";
 	}
 	else if (VecUpin.Y > 0) {
 		LocalPath = "Texture2D'/Game/BlueMarble/posz.posz'";
 	}
+
+	//Negative
 	else if (VecUpin.X < 0) {
-		LocalPath = "Texture2D'/Game/BlueMarble/posz.posz'";
+		LocalPath = "Texture2D'/Game/BlueMarble/negx.negx'";
 	}
 	else if (VecUpin.Y < 0) {
 		LocalPath = "Texture2D'/Game/BlueMarble/negz.negz'";
@@ -250,6 +289,8 @@ FString QuadtreeNode::GetTexture(FVector VecUpin) {
 	else if (VecUpin.Z < 0) {
 		LocalPath = "Texture2D'/Game/BlueMarble/negy.negy'";
 	}
+
+
 	else {
 		LocalPath = "Texture2D'/Game/BlueMarble/posy.posy'";
 
@@ -286,16 +327,15 @@ FString QuadtreeNode::GetHeightMap(FVector VecUpin) {
 
 		if (NodeLOD > 0) {
 			LocalPath = FString("Texture2D'/Game/Heightmaps/LOD") + FString::FromInt(NodeLOD) + FString("/") + FString::FromInt(SectionID) + FString(".") + FString::FromInt(SectionID) + FString("'");
-			//UE_LOG(LogTemp, Warning, TEXT("LocalPath: %s"), *LocalPath);
 		}
 	}
 	return LocalPath;
 }
 
-void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, FVector LocalUpIn, int LodLevel) {
+void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, URuntimeMeshProviderStaticMesh* StaticProviderTree, FVector LocalUpIn, int LodLevel) {
 
 	//readFile();
-
+//	StaticProviderTree->SetupMaterialSlot(0, FName("Material"), nullptr);
 	FString sPath = "Material'/Game/simplex_Mat.simplex_Mat'";
 
 
@@ -304,14 +344,18 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 
 	if (Vertices.Num() == 0) {
 		Vertices = GenerateVertices(in, Vertices, MeshResolution, LocalUpIn);
-		
+
 	}
-	
+
 	if (Triangles.Num() == 0) {
 		Triangles = GenerateTriangles(MeshResolution, Triangles, 0);
 		Vertices = ApplyHeightMap(Vertices);
 	}
-	
+
+	if (NodeLOD >= 8) {
+		FoliageSpawner(in, StaticProviderTree);
+	}
+
 	DynMat->SetTextureParameterValue(FName("Texture"), Texture);
 
 	StaticProviderIn->SetupMaterialSlot(SectionID, FName("Material"), DynMat);
@@ -319,17 +363,18 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 	StaticProviderIn->CreateSectionFromComponents(0, SectionID, SectionID, Vertices, Triangles, Normals, TexCoords, Colors, Tangents, ERuntimeMeshUpdateFrequency::Average, true);
 
 	if (parentNode.IsValid()) {
-
 		StaticProviderIn->RemoveSection(0, parentNode->SectionID);
 	}
 }
 
 void QuadtreeNode::CalculateHeightMap() {
 	FTexture2DMipMap* MyMipMap = &HeightMapTexture->PlatformData->Mips[5];
+
 	if (MyMipMap == nullptr) {
 		UE_LOG(LogTemp, Warning, TEXT("Breaking at MyMipMap"));
 		return;
 	}
+
 	FColor* data = (FColor*)HeightMapTexture->PlatformData->Mips[5].BulkData.LockReadOnly();
 	FColor tempColor;
 	if (data == nullptr) {
@@ -394,48 +439,140 @@ void QuadtreeNode::LoadTextureFromPath(const FString& FullFilePath)
 
 }
 
+UTexture2D* QuadtreeNode::GetTexture() {
+	return this->Texture;
+}
+
 void QuadtreeNode::GetPixelValues() {
-	FTexture2DMipMap* MyMipMap = &Texture->PlatformData->Mips[5];
+	UTexture2D* Tex = GetTexture();
+	FTexture2DMipMap* MyMipMap = &Tex->PlatformData->Mips[0];
 
 	if (MyMipMap == nullptr) {
-		UE_LOG(LogTemp, Warning, TEXT("Breaking at MyMipMap"));
+		//	UE_LOG(LogTemp, Warning, TEXT("Breaking at MyMipMap"));
 		return;
 	}
 
-	FColor* data = (FColor*)Texture->PlatformData->Mips[5].BulkData.LockReadOnly();
+	const FColor* data = reinterpret_cast<const FColor*>(Tex->PlatformData->Mips[0].BulkData.LockReadOnly());
+
 	FColor tempColor;
+	FVector axisA = FVector(LocalUp.Y, LocalUp.Z, LocalUp.X);
+	FVector axisB = FVector::CrossProduct(LocalUp, axisA);
 
 	if (data == nullptr) {
-		UE_LOG(LogTemp, Warning, TEXT("Breaking at FormatedImageData"));
-		Texture->PlatformData->Mips[5].BulkData.Unlock();
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, TEXT("Breaking at data"));
+		Tex->PlatformData->Mips[0].BulkData.Unlock();
 		return;
 	}
 
-	for (int x = 0; x < MyMipMap->SizeX; x++) {
-		for (int y = 0; y < MyMipMap->SizeY; y++) {
 
-			int index = x * MyMipMap->SizeY + y;
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, FString::FromInt(MyMipMap->SizeY));
+
+
+	for (int y = 0; y < MyMipMap->SizeY; y += 16) {
+		for (int x = 0; x < MyMipMap->SizeX; x += 16) {
+			int index = y * MyMipMap->SizeX + x;
 			tempColor = data[index];
 
-			double Value = (((double)tempColor.R / 255.0) + ((double)tempColor.G / 255.0) + ((double)tempColor.B / 255.0)) / 3.0;
 
-			if (tempColor.G < 155) {
-				Value = 0;
+			if (tempColor.G > 50 && tempColor.G < 70 && tempColor.B < 40 /*tempColor.B && tempColor.G > tempColor.R */) {
+				float Xpos = (double)x / MyMipMap->SizeX;
+				float Ypos = (double)y / MyMipMap->SizeY;
+				FVector TreePosition = Position + ((Xpos - 0.5f) * 2 * axisA + (Ypos - 0.5f) * 2 * axisB) * this->GetRadius();
+				TreePosition.Normalize();
+				TreePosition *= 636000000;
+
+				TexturePixelPosition.Add(TreePosition);
 			}
-			PixelValues.Add(Value);
+
 		}
 	}
-	UE_LOG(LogTemp, Warning, TEXT("Generate nodes for LOD level: %d"), PixelValues.Num());
 
-	Texture->PlatformData->Mips[5].BulkData.Unlock();
+	Tex->PlatformData->Mips[0].BulkData.Unlock();
 
 }
+
+void QuadtreeNode::FoliageSpawner(AMyActor* in, URuntimeMeshProviderStaticMesh* StaticProviderIn) {
+	if (Rendered || Normals.Num() <= 0 || TexturePixelPosition.Num() < 1) {
+		return;
+	}
+	Rendered = true;
+	if (!in->StaticMeshComponent->GetStaticMesh()) {
+		UE_LOG(LogTemp, Warning, TEXT("No mesh found breaking function"));
+		return;
+	}
+
+	//in->StaticMeshComponent->SetRelativeLocation(FVector(0,0,0));
+	FRuntimeMeshSectionProperties SectionProperties;
+	SectionProperties.bCastsShadow = true;
+	SectionProperties.bIsVisible = true;
+	SectionProperties.UpdateFrequency = ERuntimeMeshUpdateFrequency::Frequent;
+	SectionProperties.MaterialSlot = 0;
+	SectionProperties.NumTexCoords = 2;
+	//GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::FromInt(TexturePixelPosition.Num()));
+
+	FVector CameraPos = in->GetWorld()->GetFirstPlayerController()->GetPawn()->GetActorLocation();
+
+	FVector MeshPos = GetPosition();
+
+
+	//Distance between camera and meshcenter
+	double distance = FVector::Dist(CameraPos, MeshPos);
+	if (distance >= GetRadius() * 1.5) {
+		//	return;
+	}
+
+	for (int i = 0; i < TexturePixelPosition.Num(); i++) {
+
+		//UE_LOG(LogTemp, Warning, TEXT("Looping at: %d "), i);
+		int randomNormal = FMath::Floor(FMath::RandRange(0, 1)* (Normals.Num()-1));
+		FVector NormalVector = Normals[randomNormal];
+		NormalVector.Normalize();
+		FVector oldRight = in->InstancedStaticMeshComponent->GetRightVector();
+
+		FVector newAxis = FVector::CrossProduct(oldRight, NormalVector);
+		float DotProduct = FVector::DotProduct(NormalVector, in->InstancedStaticMeshComponent->GetUpVector());
+		float RotationAngle = FMath::Acos(DotProduct) * 57.2957795f;
+		//UE_LOG(LogTemp, Warning, TEXT("RotationAngle at: %f "), RotationAngle);
+
+		FQuat Quat = FQuat(oldRight, RotationAngle);
+		FQuat RootQuat = in->InstancedStaticMeshComponent->GetComponentQuat();
+
+		Quat.Normalize();
+		RootQuat.Normalize();
+		FQuat NewQuat = Quat * RootQuat;
+
+		FVector TreePosition = TexturePixelPosition[i];
+		
+		int randomHeight = FMath::Floor(FMath::RandRange(0, 1) * (HeightMap.Num() - 1));
+		TreePosition += newAxis * ((HeightMap[randomHeight] * 211600) - 5000);
+		//UE_LOG(LogTemp, Warning, TEXT(" %s "), *TreePosition.ToString());
+		//UE_LOG(LogTemp, Warning, TEXT("Generating tree at %s "),*(Vertices.Last()).ToString());
+		FTransform newTrans;
+		newTrans.SetIdentity();
+
+		newTrans.SetTranslation(TreePosition);
+		newTrans.SetScale3D(FVector(100, 100, 100));
+		newTrans.SetRotation(FQuat(FRotator(0.0, 0.0, -RotationAngle)));
+		//StaticProviderIn->SetupMaterialSlot(0, TEXT("Mat"), in->InstancedStaticMeshComponent->GetStaticMesh()->GetMaterial(0));
+		in->InstancedStaticMeshComponent->AddInstanceWorldSpace(newTrans);
+
+		if (in->InstancedStaticMeshComponent->GetStaticMesh()) {
+			StaticProviderIn->SetStaticMesh(in->InstancedStaticMeshComponent->GetStaticMesh());
+		}
+
+
+		StaticProviderIn->CreateSection(0, 0, SectionProperties);
+	}
+
+}
+
 
 TArray<FVector> QuadtreeNode::GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp) {
 	VerticesIn.Init(FVector(0, 0, 0), Resolution * Resolution);
 	TexCoords.Init(FVector2D(0, 0), Resolution * Resolution);
 	FVector axisA = FVector(LocalUp.Y, LocalUp.Z, LocalUp.X);
 	FVector axisB = FVector::CrossProduct(LocalUp, axisA);
+
 
 	FVector PointOnCube;
 	FVector PointOnSphere;
@@ -451,79 +588,34 @@ TArray<FVector> QuadtreeNode::GenerateVertices(AMyActor* in, TArray<FVector>Vert
 			TexCoords[index] = Percentage;
 			PointOnCube.Normalize();
 
-			
-
-			//if (localUp.X > 0) {
-			//	PointOnCube.X += HeightMap[index] * 0.01;
-			//}
-			//else if (localUp.Y > 0) {
-			//	PointOnCube.Y += HeightMap[index] * 0.01;
-			//}
-			//else if (localUp.Z > 0) {
-			//	//PointOnCube.Z += HeightMap[index] * 0.001;
-			//}
-			//else if (localUp.X < 0) {
-			//	PointOnCube.X -= HeightMap[index] * 0.01;
-			//}
-			//else if (localUp.Y < 0) {
-			//	PointOnCube.Z -= HeightMap[index] * 0.01;
-			//}
-			//else if (localUp.Z < 0) {
-			//	PointOnCube.Y -= HeightMap[index] * 0.01;
-			//}
-
-			//if (y < 1 && y > Resolution-1) {
-			//	if (x < 1 && y > Resolution -1) {
-			//		PointOnCube.Z = 0.2 * 0.001;
-			//	}
-			//}
-			//else {
-			//	PointOnCube.Z += HeightMap[index] * 0.001;
-			//}
 
 
-			if (x == 0 || y == 0 || x == Resolution-1 || y == Resolution-1) {
-			
-				VerticesIn[index].Z += 0.3* 0.001;
-			
-				
-			}
 			VerticesIn[index] = PointOnCube * 636000000;
+
 		}
 	}
 	return VerticesIn;
 }
 
+
 TArray<FVector>  QuadtreeNode::ApplyHeightMap(TArray<FVector>VerticesIn) {
-
-	for (int y = 1; y < MeshResolution -1 ; y++) {
-		for (int x =1 ; x < MeshResolution -1 ; x++) {
-
+	int decreaser = 1;
+	for (int y = 0; y < MeshResolution; y++) {
+		for (int x = 0; x < MeshResolution; x++) {
 			int index = GetIndexForGridCoordinates(x, y, MeshResolution);
-			VerticesIn[index] += Normals[index]*(HeightMap[index] * 0.0005 * 636000000) ;
-			/*if (LocalUp.X > 0) {
-				VerticesIn[index].X += HeightMap[index] * 0.01;
+			if (index % MeshResolution - 1 == 0 || index % MeshResolution == 0 || index < MeshResolution || index > FMath::Pow(MeshResolution, 2) - MeshResolution) {
+			
+			
 			}
-			else if (LocalUp.Y > 0) {
-				VerticesIn[index].Y += HeightMap[index] * 0.01;
-			}
-			else if (LocalUp.Z > 0) {
-				VerticesIn[index].Z += HeightMap[index] * 0.001;
-			}
-			else if (LocalUp.X < 0) {
-				VerticesIn[index].X -= HeightMap[index] * 0.01;
-			}
-			else if (LocalUp.Y < 0) {
-				VerticesIn[index].Z -= HeightMap[index] * 0.01;
-			}
-			else if (LocalUp.Z < 0) {
-				VerticesIn[index].Y -= HeightMap[index] * 0.01;
-			}*/
-			//VerticesIn[index] = VerticesIn[index] * 636000000;
-		}
+			else {
+				VerticesIn[index] += Normals[index] * ((HeightMap[index] * 211600) - 5000);
 
+			}
+
+		}
+		decreaser = 1;
 	}
-	
+
 	return VerticesIn;
 }
 
@@ -557,11 +649,19 @@ TArray<int>  QuadtreeNode::GenerateTriangles(int MeshResolutionin, TArray<int>Tr
 			int bottomRightIndex = GetIndexForGridCoordinates(x + 1, y, MeshResolutionin);
 
 			//Calculate Normals for each triangle
-			Normals[bottomLeftIndex] = (computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
+			if (Vertices.Num() > 0) {
+				Normals[bottomLeftIndex] = (computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
+			}
 
-			//Normals.Add(computeNormals(Vertices[topLeftIndex], Vertices[bottomRightIndex], Vertices[topRightIndex]));
+
+
+
 			//Tangents.Add(FVector(0, 0, 0));
-			Tangents[bottomLeftIndex] = (-computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
+			if (Vertices.Num() > 0) {
+				Tangents[bottomLeftIndex] = (-computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
+			}
+
+			//Tangents[bottomLeftIndex] = (-computeNormals(Vertices[bottomLeftIndex], Vertices[bottomRightIndex], Vertices[topLeftIndex]));
 			// Assigning the 6 triangle points to the corresponding vertex indexes, by going counter-clockwise.
 			TrianglesIn[TriangleIndex] = bottomLeftIndex + TriangleOffset;
 			TrianglesIn[TriangleIndex + 1] = topLeftIndex + TriangleOffset;

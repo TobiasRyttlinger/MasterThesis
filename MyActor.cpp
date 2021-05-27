@@ -16,7 +16,29 @@ AMyActor::AMyActor()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	//static ConstructorHelpers::FObjectFinder<UStaticMeshComponent> Tree(TEXT("StaticMesh'/Game/Pine/0_LOD0_pine_Mat_0.0_LOD0_pine_Mat_0'"));z
+	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 
+	const ConstructorHelpers::FObjectFinder<UStaticMesh> MeshObj(TEXT("StaticMesh'/Game/Pine/Pine/StaticMesh2.StaticMesh2'"));
+
+	InstancedStaticMeshComponent = CreateDefaultSubobject< UInstancedStaticMeshComponent >(TEXT("InstancedStaticMeshComponentCOMP"));
+	//InstancedStaticMeshComponent->AttachTo(RootComponent);
+	InstancedStaticMeshComponent->SetMobility(EComponentMobility::Movable);
+	InstancedStaticMeshComponent->SetStaticMesh(MeshObj.Object);
+	StaticMeshComponent->SetStaticMesh(MeshObj.Object);
+
+	StaticMeshComponent->SetRelativeRotation(FRotator(0, 90, 0));
+	StaticMeshComponent->SetWorldRotation(FRotator(0, 90, 0));
+	//srand(time(0)); //Seed the random system
+	//for (int i = 0; i < 10000; i++) {
+	//	RandomPosition.Add(FVector(FMath::RandRange(0, 1), FMath::RandRange(0, 1),1));
+	//}
+
+	//meshToUse = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, TEXT("StaticMesh'/Game/Pine/StaticMesh.StaticMesh'")));
+	//StaticMeshComponent->SetWorldLocation(FVector(348869280, -79578736, 526509792));
+
+	
+	meshToUse = StaticMeshComponent->GetStaticMesh();
 }
 
 // Called when the game starts or when spawned
@@ -74,7 +96,7 @@ void AMyActor::BeginPlay()
 	//for (auto& Elem : TexArray){
 	//	UE_LOG(LogTemp, Warning, TEXT("TexArray:, %s"), *Elem.Key);
 	//}
-	
+
 
 	counter = 0;
 	Super::BeginPlay();
@@ -100,15 +122,15 @@ void AMyActor::BeginPlay()
 	//QT_5.UpdateMesh(QT_5.GetRootNode());
 	//QT_6.UpdateMesh(QT_6.GetRootNode());
 
+
+
 }
 
 // Called every frame
 void AMyActor::Tick(float DeltaTime)
 {
 
-	
-
-	if (counter >= 0.5f) {
+	if (counter >= 0.3f) {
 		//GEngine->ForceGarbageCollection(true);
 		QT_1.UpdateMesh(QT_1.GetRootNode());
 		/*QT_2.UpdateMesh(QT_2.GetRootNode());
@@ -117,22 +139,25 @@ void AMyActor::Tick(float DeltaTime)
 		QT_5.UpdateMesh(QT_5.GetRootNode());
 		QT_6.UpdateMesh(QT_6.GetRootNode());*/
 
-		QT_1.GenerateTerrain(QT_1.VisiblechildrenNodes);
-		QT_2.GenerateTerrain(QT_2.VisiblechildrenNodes);
-		QT_3.GenerateTerrain(QT_3.VisiblechildrenNodes);
-		QT_4.GenerateTerrain(QT_4.VisiblechildrenNodes);
-		QT_5.GenerateTerrain(QT_5.VisiblechildrenNodes);
-		QT_6.GenerateTerrain(QT_6.VisiblechildrenNodes);
 	
-		counter = 0;
-	
-	}
 
+		counter = 0;
+		GEngine->ForceGarbageCollection();
+	}
+	QT_1.GenerateTerrain(QT_1.VisiblechildrenNodes);
+	QT_2.GenerateTerrain(QT_2.VisiblechildrenNodes);
+	QT_3.GenerateTerrain(QT_3.VisiblechildrenNodes);
+	QT_4.GenerateTerrain(QT_4.VisiblechildrenNodes);
+	QT_5.GenerateTerrain(QT_5.VisiblechildrenNodes);
+	QT_6.GenerateTerrain(QT_6.VisiblechildrenNodes);
 	counter += DeltaTime;
 	Super::Tick(DeltaTime);
-
+	
 
 }
+
+
+
 
 UTexture2D* AMyActor::LoadTextureFromPath(const FString& FullFilePath)
 {

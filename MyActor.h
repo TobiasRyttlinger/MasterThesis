@@ -19,8 +19,19 @@ public:
 	// Sets default values for this actor's properties
 	AMyActor();
 
+	void FoliageSpawner();
 
 	double PlanetSize = 636000000;
+	UPROPERTY()
+	UStaticMeshComponent* StaticMeshComponent;
+	UPROPERTY()
+	UStaticMesh* meshToUse;
+	UPROPERTY()
+	UInstancedStaticMeshComponent* InstancedStaticMeshComponent;
+	UPROPERTY()
+		TArray<UStaticMeshComponent*> MeshArray;
+	UPROPERTY()
+		TArray<FVector> RandomPosition;
 
 	float counter;
 protected:
@@ -29,6 +40,8 @@ protected:
 
 	UPROPERTY()
 		USceneComponent* RootComp;
+
+
 
 	UTexture2D* LoadTextureFromPath(const FString& FullFilePath);
 	//TArray<UTexture2D> Textures;

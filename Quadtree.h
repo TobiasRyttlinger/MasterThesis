@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "Runtime/Engine/Classes/Components/ActorComponent.h"
 #include "Components/RuntimeMeshComponentStatic.h"
+
 #include "GenericPlatform/GenericPlatformMath.h"
 #include <Exjobb2/MyActor.h>
 #include "Kismet/GameplayStatics.h"
@@ -59,6 +60,7 @@ private:
 private:
 	// Root Node
 	URuntimeMeshProviderStatic* StaticProvider;
+	URuntimeMeshProviderStaticMesh* StaticProviderTree;
 	TSharedPtr<QuadtreeNode> RootNode;
 	AMyActor* QT_Actor;
 	int MaxDistance;

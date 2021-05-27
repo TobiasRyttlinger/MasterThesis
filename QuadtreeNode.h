@@ -4,7 +4,7 @@
 #include "Templates/SharedPointer.h"
 #include "Components/RuntimeMeshComponentStatic.h"
 #include "Providers/RuntimeMeshProviderStatic.h"
-#include "Providers/RuntimeMeshProviderSphere.h"
+#include "Providers/RuntimeMeshProviderStaticMesh.h"
 #include "Containers/Array.h"
 #include "MyActor.h"
 #include "Engine/World.h"
@@ -17,6 +17,14 @@
 #include "IImageWrapper.h"
 #include "HAL/UnrealMemory.h"
 #include "DDSLoader.h"
+#include "UObject/Object.h"
+#include "Math/TransformCalculus.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "EngineUtils.h"
+#include "Engine/StaticMeshActor.h"
+#include "Kismet/GameplayStatics.h"
+#include "Runtime/Foliage/Public/ProceduralFoliageSpawner.h"
+#include "Runtime/Foliage/Public/InstancedFoliageActor.h"
 // Core includes
 #include "CoreMinimal.h"
 
@@ -36,17 +44,20 @@ public:
 	FVector computeNormals(FVector a, FVector b, FVector c);
 
 	/**Runtime Mesh Component for this node*/
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere)
 		URuntimeMeshComponentStatic* RMC;
 
+	UPROPERTY(VisibleAnywhere)
+		URuntimeMeshComponentStatic* RMCTree;
 
-
+	TArray<int> TreeTriangles;
+	TArray<FVector> TreeVertices;
 	/** Set the parent node for this node. */
 	void SetParentNode(TSharedPtr<QuadtreeNode> parentNode);
 
 
 	/** Initialise this node. */
-	void initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, TSharedPtr<QuadtreeNode> Parent, FVector Position, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos);
+	void initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* StaticProviderIn, URuntimeMeshProviderStaticMesh* StaticProviderTreeIn, TSharedPtr<QuadtreeNode> Parent, FVector Position, double radius, int lodLevel, FVector localUp, FVector axisA, FVector axisB, int pos);
 
 	/** Get the parent node to this node. */
 	TSharedPtr<QuadtreeNode> GetParentNode();
@@ -103,7 +114,9 @@ public:
 
 	void ClearData();
 
-	void GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProvider, FVector LocalUp, int LodLevel);
+	void FoliageSpawner(AMyActor* in, URuntimeMeshProviderStaticMesh* StaticProviderIn);
+
+	void GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* StaticProvider, URuntimeMeshProviderStaticMesh* StaticProviderTree, FVector LocalUp, int LodLevel);
 
 	void readFile();
 
@@ -111,7 +124,11 @@ public:
 
 	TArray<FVector> GenerateVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp);
 
+	TArray<FVector> GenerateCubeVertices(AMyActor* in, TArray<FVector>VerticesIn, int Resolution, FVector localUp);
+
 	int GetIndexForGridCoordinates(int x, int y, int NoiseSamplesPerLine);
+
+	UTexture2D* GetTexture();
 
 	TArray<FVector> ApplyHeightMap(TArray<FVector>VerticesIn);
 
@@ -134,6 +151,9 @@ public:
 	double NodeRadius;
 	int SectionID;
 	bool Rendered;
+
+	UPROPERTY()
+		TArray<FVector> TexturePixelPosition;
 
 	UPROPERTY()
 		TArray<FVector2D> TexCoords;
@@ -177,6 +197,10 @@ private:
 
 
 private:
+	UPROPERTY()
+		UStaticMesh* StaticMesh;
+	UPROPERTY()
+		UStaticMeshComponent* TreeMesh;
 	/** The bounding box for this node. */
 	UPROPERTY()
 		TSharedPtr<FBox2D> boundingBox;
@@ -187,6 +211,8 @@ private:
 
 	/** The position of this node relevant to it's parent. */
 	int NodePosition;
+
+
 
 	double GetNoiseValueForGridCoordinates(int x, int y);
 
