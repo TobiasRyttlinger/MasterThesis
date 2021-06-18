@@ -14,19 +14,23 @@ Quadtree QT_6;
 // Sets default values
 AMyActor::AMyActor()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	
 	//static ConstructorHelpers::FObjectFinder<UStaticMeshComponent> Tree(TEXT("StaticMesh'/Game/Pine/0_LOD0_pine_Mat_0.0_LOD0_pine_Mat_0'"));z
 	StaticMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 
-	const ConstructorHelpers::FObjectFinder<UStaticMesh> MeshObj(TEXT("StaticMesh'/Game/Pine/Pine/StaticMesh2.StaticMesh2'"));
-
-	InstancedStaticMeshComponent = CreateDefaultSubobject< UInstancedStaticMeshComponent >(TEXT("InstancedStaticMeshComponentCOMP"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshObj(TEXT("StaticMesh'/Game/Pine/0_LOD0_pine_Mat_0.0_LOD0_pine_Mat_0'"));
+	if (MeshObj.Object) {
+		UE_LOG(LogTemp, Warning, TEXT(" mesh found breaking function"));
+	}
+	//static ConstructorHelpers::FObjectFinder<UStaticMesh>MyObj(TEXT("StaticMesh'/Game/Pine/0_LOD0_pine_Mat_0.0_LOD0_pine_Mat_0'"));
+	
+	InstancedStaticMeshComponent = CreateDefaultSubobject< UInstancedStaticMeshComponent >(TEXT("InstancedStaticMeshComponentComponent"));
 	//InstancedStaticMeshComponent->AttachTo(RootComponent);
-	InstancedStaticMeshComponent->SetMobility(EComponentMobility::Movable);
-	InstancedStaticMeshComponent->SetStaticMesh(MeshObj.Object);
 	StaticMeshComponent->SetStaticMesh(MeshObj.Object);
+	InstancedStaticMeshComponent->SetStaticMesh(MeshObj.Object);
+	InstancedStaticMeshComponent->SetMobility(EComponentMobility::Movable);
 
+	
 	StaticMeshComponent->SetRelativeRotation(FRotator(0, 90, 0));
 	StaticMeshComponent->SetWorldRotation(FRotator(0, 90, 0));
 	//srand(time(0)); //Seed the random system
@@ -36,7 +40,8 @@ AMyActor::AMyActor()
 
 	//meshToUse = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), NULL, TEXT("StaticMesh'/Game/Pine/StaticMesh.StaticMesh'")));
 	//StaticMeshComponent->SetWorldLocation(FVector(348869280, -79578736, 526509792));
-
+		// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	PrimaryActorTick.bCanEverTick = true;
 	
 	meshToUse = StaticMeshComponent->GetStaticMesh();
 }

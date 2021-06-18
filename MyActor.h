@@ -20,9 +20,9 @@ public:
 	AMyActor();
 
 	void FoliageSpawner();
-
+	double rotation = 0;
 	double PlanetSize = 636000000;
-	UPROPERTY()
+
 	UStaticMeshComponent* StaticMeshComponent;
 	UPROPERTY()
 	UStaticMesh* meshToUse;

@@ -61,7 +61,7 @@ void AMyActor2::Tick(float DeltaTime)
 {
 	FString newPath = "Texture2D'/Game/Heightmaps/negx.negx'";
 
-	if (counter > 1.0f) {
+	//if (counter > 1.0f) {
 
 
 		int rand = FMath::RandRange(0, TextureArray.Num()-1);
@@ -86,10 +86,10 @@ void AMyActor2::Tick(float DeltaTime)
 		}
 		FString IntAsString = FString::FromInt(rand);
 		FString sPath = "C:/Users/Admin/Downloads/Tiles/" + IntAsString + ".png";
-		LoadTextureFromPath(sPath);
+	//	LoadTextureFromPath(sPath);
 		// temptexture = LoadObjFromPath<UTexture2D>(FName(*newPath));
 		if (TextureArray.Num() > 0) {
-			DynMat->SetTextureParameterValue(FName("Texture"), Texture);
+			DynMat->SetTextureParameterValue(FName("Texture"), TextureArray[rand]);
 			for (int i = 0; i < 25; i++) {
 				StaticProvider->SetupMaterialSlot(i, TEXT("Material"), DynMat);
 			}
@@ -98,7 +98,7 @@ void AMyActor2::Tick(float DeltaTime)
 
 
 		counter = 0;
-	}
+	//}
 
 	//GEngine->ForceGarbageCollection(true);
 

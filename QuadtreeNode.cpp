@@ -75,7 +75,7 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 
 
 	if (Texture != nullptr) {
-		/*if (NodeLOD >= 8 ) {
+		if (NodeLOD >= 8 ) {
 			
 			Texture->SRGB = false;
 			Texture->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
@@ -90,7 +90,7 @@ void QuadtreeNode::initialiseNode(AMyActor* in, URuntimeMeshProviderStatic* Stat
 			Texture->MipGenSettings = old;
 			Texture->CompressionSettings = TextureCompressionSettings::TC_Default;
 			Texture->UpdateResource();
-		}*/
+		}
 	}
 
 	else {
@@ -268,23 +268,23 @@ void QuadtreeNode::readFile()
 
 
 FString QuadtreeNode::GetTexture(FVector VecUpin) {
-	FString LocalPath = "Texture2D'/Game/BlueMarble/posx.posx'";
+	FString LocalPath = "Texture2D'/Game/BlueMarble/negz.negz'";
 
 	//Default maps Blue marble
 	//Positive
-	if (VecUpin.X > 0) {
+	if (VecUpin.X > 0 ) {
 		LocalPath = "Texture2D'/Game/BlueMarble/posx.posx'";
 	}
 	else if (VecUpin.Y > 0) {
-		LocalPath = "Texture2D'/Game/BlueMarble/posz.posz'";
+		LocalPath = "Texture2D'/Game/BlueMarble/negz.negz'";
 	}
 
 	//Negative
 	else if (VecUpin.X < 0) {
-		LocalPath = "Texture2D'/Game/BlueMarble/negx.negx'";
+		LocalPath = "Texture2D'/Game/BlueMarble/posz.posz'";
 	}
 	else if (VecUpin.Y < 0) {
-		LocalPath = "Texture2D'/Game/BlueMarble/negz.negz'";
+		LocalPath = "Texture2D'/Game/BlueMarble/negx.negx'";
 	}
 	else if (VecUpin.Z < 0) {
 		LocalPath = "Texture2D'/Game/BlueMarble/negy.negy'";
@@ -362,7 +362,7 @@ void QuadtreeNode::GenerateNodeMesh(AMyActor* in, URuntimeMeshProviderStatic* St
 
 	StaticProviderIn->CreateSectionFromComponents(0, SectionID, SectionID, Vertices, Triangles, Normals, TexCoords, Colors, Tangents, ERuntimeMeshUpdateFrequency::Average, true);
 
-	if (parentNode.IsValid()) {
+	if (parentNode.IsValid() && parentNode->SectionID != 0) {
 		StaticProviderIn->RemoveSection(0, parentNode->SectionID);
 	}
 }
@@ -588,9 +588,10 @@ TArray<FVector> QuadtreeNode::GenerateVertices(AMyActor* in, TArray<FVector>Vert
 			TexCoords[index] = Percentage;
 			PointOnCube.Normalize();
 
-
+			
 
 			VerticesIn[index] = PointOnCube * 636000000;
+
 
 		}
 	}
